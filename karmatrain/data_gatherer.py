@@ -49,6 +49,8 @@ class SubmissionGather:
         """
         Args:
             submission (str): url (permalink) of submission.
+            analysis_time (float): Time in hours the function should watch the thread
+            analysis_delay (float): TIme in seconds indicating the delay to gather data
         """
         self.permalink = permalink
         self.analysis_time = analysis_time 
@@ -81,9 +83,6 @@ class SubmissionGather:
         """
         Keep checking thread until analisys_time ends
         
-        Attributes:
-            analysis_time (float): Time in hours the function should watch the thread
-            analysis_delay (float): TIme in seconds indicating the delay to gather data
         """
         
         now = time.time()
@@ -147,6 +146,9 @@ class SubredditGather:
         """
         Args:
             subreddit (str): name of subreddit.
+            max_posts (int): maximum number of posts to be gathered
+            analysis_time (float): number of hours each submission will be followed
+            analysis_delay (float): number of seconds to wait between data gathering
         """
         self.analysis_time = analysis_time 
         self.analysis_delay = analysis_delay
@@ -159,10 +161,6 @@ class SubredditGather:
         """
         Keep checking thread until analisys_time ends
         
-        Attributes:
-            max_posts (int): maximum number of posts to be gathered
-            analysis_time (float): number of hours each submission will be followed
-            analysis_delay (float): number of seconds to wait between data gathering
         """
         self.watch_thread = threading.Thread(target=self.__newSubmissionWatcher__, args=())
         self.watch_thread.start() 
@@ -181,9 +179,11 @@ class SubredditGather:
             return self.watch_thread.isAlive()
         
     def __newSubmissionWatcher__(self):
+        #TODO add core suppor
         praw_subreddit = r.get_subreddit(self.subreddit)
         sub_list = [s for s in praw_subreddit.get_new()]
         place_holder = sub_list[0].id
+        print place_holder
         
         submission_counter = 0
         while submission_counter < self.max_posts:
@@ -192,9 +192,11 @@ class SubredditGather:
                 sub_list_id = [s.id for s in sub_list]
                 if place_holder not in sub_list_id:
                     sub_list = []      
-                
-                if len(sub_list) > 1:
+                else:
                     sub_list.pop()
+                if len(sub_list) > 0:
+                    printlist = [s.id for s in sub_list]
+                    print printlist
                     place_holder = sub_list[0].id
                     for s in sub_list:
                         SubmissionGather(s.permalink,self.analysis_time,self.analysis_delay).watch()
@@ -206,3 +208,5 @@ class SubredditGather:
         
 
         
+
+    
