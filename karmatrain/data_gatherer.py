@@ -12,8 +12,8 @@ Exemples:
     To generate gather data file (see data folder) from a specific post over time:
     $ python
     $ import DataGatherer
-    $ your_submission = DataGatherer.SubmissionGather("INSERT SUBMISSION PERMALINK HERE")
-    $ your_submission.watch(2,20)
+    $ your_submission = DataGatherer.SubmissionGather("INSERT SUBMISSION PERMALINK HERE",2,20)
+    $ your_submission.watch()
     $ #This will gather karma data from the your submission for the next 2h checking the thread
     $ #for changes every 20 seconds.
     
@@ -21,14 +21,13 @@ Exemples:
     To generate gather data file (see data folder) from a specific subreddit over time:
     $ python
     $ import DataGatherer
-    $ subreddit = DataGatherer.SubredditGather('circlejerk')
-    $ subreddit.watch(500,24,20)
+    $ subreddit = DataGatherer.SubredditGather('circlejerk',500,24,20)
+    $ subreddit.watch()
     $ #This will gather karma data for the next 500 submissions from /r/circlejerk for the next 24h
     $ #checking each thread for changes every 20 seconds.   
     
 Todo:
-    *Do error handling in __periodicUpdate__
-    *Finish __newSubmissionWatcher__
+    
 
 """
 
@@ -45,13 +44,21 @@ class SubmissionGather:
     """
     This class is used to gather karma data from a specific submission
     """
-    def __init__(self,submission_permalink):
+    def __init__(self,permalink,analysis_time,analysis_delay):
         """
         Args:
             submission (str): url (permalink) of submission.
+            analysis_time (float): Time in hours the function should watch the thread
+            analysis_delay (float): TIme in seconds indicating the delay to gather data
         """
-        self.thread_running_flag = False
-        self.permalink = submission_permalink
+        self.permalink = permalink
+        self.analysis_time = analysis_time 
+        self.analysis_delay = analysis_delay
+        
+        self.watch_thread = None
+        now = time.time()
+        deadline = now + ( self.analysis_time * 3600.0 )
+        self.watch_thread = threading.Thread(target=self.__periodicUpdate__, args=(deadline,self.analysis_delay))
         self.__fileInit__()
         
     
@@ -71,19 +78,17 @@ class SubmissionGather:
         pass
    
      
-    def watch(self,analysis_time,analysis_delay):
+    def watch(self):
         """
         Keep checking thread until analisys_time ends
         
-        Attributes:
-            analysis_time (float): Time in hours the function should watch the thread
-            analysis_delay (float): TIme in seconds indicating the delay to gather data
+
         """
         
         now = time.time()
-        deadline = now + ( analysis_time * 3600.0 )
-        watch_thread = threading.Thread(target=self.__periodicUpdate__, args=(deadline,analysis_delay))
-        watch_thread.start()    
+        deadline = now + ( self.analysis_time * 3600.0 )
+        self.watch_thread = threading.Thread(target=self.__periodicUpdate__, args=(deadline,self.analysis_delay))
+        self.watch_thread.start()    
         pass
         
     def getThreadStatus(self):
@@ -93,21 +98,25 @@ class SubmissionGather:
         Returns:
             True if a thread called by this class is running, False otherwise
         """
-        return self.thread_running_flag
+        if type(self.watch_thread) == type(None):
+            return False
+        else:
+            return self.watch_thread.isAlive()
         
         
     def __periodicUpdate__(self,deadline,delay):
-        #TODO Server error handling
         """
         For devs only:
             Since this funcion will be executing for a long time and reddit servers can go down at any time
             this function will need a proper error handling.
         """
-        self.thread_running_flag = True
-        while time.time() <= deadline:
-            self.update()
-            time.sleep(delay)
-        self.thread_running_flag = False
+        try:
+            while time.time() <= deadline:
+                self.update()
+                time.sleep(delay)
+        except AttributeError:
+        #This erros is caused by multiple requests of reddit api
+            pass
         pass
             
     def __fileInit__(self):
@@ -131,26 +140,28 @@ class SubredditGather:
     """
     This class is used to gather karma data for an specific number of upcomming submissions in a chosen subreddit
     """
-    def __init__(self,subreddit):
+    def __init__(self,subreddit,max_posts,analysis_time,analysis_delay):
         """
         Args:
             subreddit (str): name of subreddit.
-        """
-        self.thread_running_flag = False
-        self.subreddit = subreddit
-        
-
-    def watch(self,max_posts,analysis_time,analysis_delay):
-        """
-        Keep checking thread until analisys_time ends
-        
-        Attributes:
             max_posts (int): maximum number of posts to be gathered
             analysis_time (float): number of hours each submission will be followed
             analysis_delay (float): number of seconds to wait between data gathering
         """
-        watch_thread = threading.Thread(target=self.__newSubmissionWatcher__, args=(max_posts,analysis_time,analysis_delay))
-        watch_thread.start() 
+        self.analysis_time = analysis_time 
+        self.analysis_delay = analysis_delay
+        self.subreddit = subreddit
+        self.max_posts = max_posts
+        self.watch_thread = threading.Thread(target=self.__newSubmissionWatcher__, args=())
+        
+
+    def watch(self):
+        """
+        Keep checking thread until analisys_time ends
+        
+        """
+        self.watch_thread = threading.Thread(target=self.__newSubmissionWatcher__, args=())
+        self.watch_thread.start() 
         pass
 
     def getThreadStatus(self):
@@ -160,10 +171,31 @@ class SubredditGather:
         Returns:
             True if a thread called by this class is running, False otherwise
         """
-        return self.thread_running_flag
+        if type(self.watch_thread) == type(None):
+            return False
+        else:
+            return self.watch_thread.isAlive()
         
-    def __newSubmissionWatcher__(self,max_posts,analysis_time,analysis_delay):
-        self.thread_running_flag = True
-        #TODO finish this function
-        self.thread_running_flag = False
+    def __newSubmissionWatcher__(self):
+        praw_subreddit = r.get_subreddit(self.subreddit)
+        sub_list = [s for s in praw_subreddit.get_new()]
+        place_holder = sub_list[0].id
         
+        submission_counter = 0
+        while submission_counter < self.max_posts:
+            try:
+                sub_list = [s for s in praw_subreddit.get_new(place_holder = place_holder)]       
+                sub_list.pop()
+                if len(sub_list) > 0:
+                    place_holder = sub_list[0].id
+                    for s in sub_list:
+                        SubmissionGather(s.permalink,self.analysis_time,self.analysis_delay).watch()
+                    submission_counter += len(sub_list)
+            except AttributeError:
+            #This error is caused by multiple requests of reddit api
+        pass
+        
+
+    
+    
+    
