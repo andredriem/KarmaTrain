@@ -27,7 +27,8 @@ Exemples:
     $ #checking each thread for changes every 20 seconds.   
     
 Todo:
-    
+    *Do error handling in __periodicUpdate__
+    *Finish __newSubmissionWatcher__
 
 """
 
@@ -48,8 +49,6 @@ class SubmissionGather:
         """
         Args:
             submission (str): url (permalink) of submission.
-            analysis_time (float): Time in hours the function should watch the thread
-            analysis_delay (float): TIme in seconds indicating the delay to gather data
         """
         self.permalink = permalink
         self.analysis_time = analysis_time 
@@ -57,8 +56,8 @@ class SubmissionGather:
         
         self.watch_thread = None
         now = time.time()
-        deadline = now + ( self.analysis_time * 3600.0 )
-        self.watch_thread = threading.Thread(target=self.__periodicUpdate__, args=(deadline,self.analysis_delay))
+        self.deadline = now + ( self.analysis_time * 3600.0 )
+        self.watch_thread = threading.Thread(target=self.__periodicUpdate__, args=(self.deadline,self.analysis_delay))
         self.__fileInit__()
         
     
@@ -71,8 +70,8 @@ class SubmissionGather:
         s_dic = {}
         s_dic['ups'] = submission.ups
         s_dic['ratio'] = submission.upvote_ratio
-        s_dic['time'] = submission.created_utc
         s_dic['computer_time'] = time.time()
+        s_dic['num_comments'] = submission.num_comments
               
         self.__save__(submission.id,s_dic,'a')
         pass
@@ -82,12 +81,14 @@ class SubmissionGather:
         """
         Keep checking thread until analisys_time ends
         
-
+        Attributes:
+            analysis_time (float): Time in hours the function should watch the thread
+            analysis_delay (float): TIme in seconds indicating the delay to gather data
         """
         
         now = time.time()
-        deadline = now + ( self.analysis_time * 3600.0 )
-        self.watch_thread = threading.Thread(target=self.__periodicUpdate__, args=(deadline,self.analysis_delay))
+        self.deadline = now + ( self.analysis_time * 3600.0 )
+        self.watch_thread = threading.Thread(target=self.__periodicUpdate__, args=(self.deadline,self.analysis_delay))
         self.watch_thread.start()    
         pass
         
@@ -126,6 +127,8 @@ class SubmissionGather:
         s_dic['selftext'] = submission.selftext
         s_dic['id'] = submission.id
         s_dic['permalink'] = self.permalink
+        s_dic['deadline'] = self.deadline
+        s_dic['time'] = submission.created_utc
                 
         self.__save__(submission.id,s_dic,'w')
         pass
@@ -144,9 +147,6 @@ class SubredditGather:
         """
         Args:
             subreddit (str): name of subreddit.
-            max_posts (int): maximum number of posts to be gathered
-            analysis_time (float): number of hours each submission will be followed
-            analysis_delay (float): number of seconds to wait between data gathering
         """
         self.analysis_time = analysis_time 
         self.analysis_delay = analysis_delay
@@ -159,6 +159,10 @@ class SubredditGather:
         """
         Keep checking thread until analisys_time ends
         
+        Attributes:
+            max_posts (int): maximum number of posts to be gathered
+            analysis_time (float): number of hours each submission will be followed
+            analysis_delay (float): number of seconds to wait between data gathering
         """
         self.watch_thread = threading.Thread(target=self.__newSubmissionWatcher__, args=())
         self.watch_thread.start() 
@@ -184,18 +188,21 @@ class SubredditGather:
         submission_counter = 0
         while submission_counter < self.max_posts:
             try:
-                sub_list = [s for s in praw_subreddit.get_new(place_holder = place_holder)]       
-                sub_list.pop()
-                if len(sub_list) > 0:
+                sub_list = [s for s in praw_subreddit.get_new(place_holder = place_holder)] 
+                sub_list_id = [s.id for s in sub_list]
+                if place_holder not in sub_list_id:
+                    sub_list = []      
+                
+                if len(sub_list) > 1:
+                    sub_list.pop()
                     place_holder = sub_list[0].id
                     for s in sub_list:
                         SubmissionGather(s.permalink,self.analysis_time,self.analysis_delay).watch()
                     submission_counter += len(sub_list)
             except AttributeError:
             #This error is caused by multiple requests of reddit api
+                pass
         pass
         
 
-    
-    
-    
+        
