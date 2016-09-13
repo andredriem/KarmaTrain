@@ -1,2 +1,2 @@
 # KarmaTrain
-Python command-line application to gatter submissions data from reddit over time.
+Python aplication to gather and vizualize reddit statistical data.
