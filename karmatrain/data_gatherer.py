@@ -5,6 +5,8 @@ specific subreddit or submission. It generates files containing several json ele
 contains information about the thread, the following contain karma data over time. Each file is
 identified by it's submission ID.
 
+All classes in this module works using threading and multiprossessing (TODO) so be carefull when using.
+
 
 
 Exemples:
@@ -27,8 +29,8 @@ Exemples:
     $ #checking each thread for changes every 20 seconds.   
     
 Todo:
-    *Do error handling in __periodicUpdate__
-    *Finish __newSubmissionWatcher__
+    *Multiprossessing support at __newSubmissionWatcher__ and see if I can make that fucking spaggeti more
+    readable
 
 """
 
@@ -82,7 +84,6 @@ class SubmissionGather:
     def watch(self):
         """
         Keep checking thread until analisys_time ends
-        
         """
         
         now = time.time()
@@ -168,7 +169,7 @@ class SubredditGather:
 
     def getThreadStatus(self):
         """
-        Checks class threads status
+        Checks class threads status.
         
         Returns:
             True if a thread called by this class is running, False otherwise
@@ -179,7 +180,8 @@ class SubredditGather:
             return self.watch_thread.isAlive()
         
     def __newSubmissionWatcher__(self):
-        #TODO add core suppor
+        #TODO add multiprocessing support
+        #TODO make this function less spaggeti (very hard)
         praw_subreddit = r.get_subreddit(self.subreddit)
         sub_list = [s for s in praw_subreddit.get_new()]
         place_holder = sub_list[0].id
@@ -208,5 +210,3 @@ class SubredditGather:
         
 
         
-
-    
