@@ -3,7 +3,8 @@
 This module provides the user a diverse set of tools for gathering statistical karma data from a
 specific subreddit or submission. It generates files containing several json elements. The first json
 contains information about the thread, the following contain karma data over time. Each file is
-identified by it's submission ID.
+identified by it's submission ID. The files are stored in the folder you are currently working with.
+
 
 All classes in this module works using threading and multiprossessing (TODO) so be carefull when using.
 
@@ -11,10 +12,12 @@ All classes in this module works using threading and multiprossessing (TODO) so 
 
 Exemples:
 
+    As a module:
+    
     To generate gather data file (see data folder) from a specific post over time:
     $ python
-    $ import DataGatherer
-    $ your_submission = DataGatherer.SubmissionGather("INSERT SUBMISSION PERMALINK HERE",2,20)
+    $ import data_gatherer
+    $ your_submission = data_gatherer.SubmissionGather("INSERT SUBMISSION PERMALINK HERE",2,20)
     $ your_submission.watch()
     $ #This will gather karma data from the your submission for the next 2h checking the thread
     $ #for changes every 20 seconds.
@@ -22,24 +25,31 @@ Exemples:
     
     To generate gather data file (see data folder) from a specific subreddit over time:
     $ python
-    $ import DataGatherer
-    $ subreddit = DataGatherer.SubredditGather('circlejerk',500,24,20)
+    $ import data_gatherer
+    $ subreddit = data_gatherer.SubredditGather('circlejerk',500,24,20)
     $ subreddit.watch()
     $ #This will gather karma data for the next 500 submissions from /r/circlejerk for the next 24h
     $ #checking each thread for changes every 20 seconds.   
     
+    Calling the apllication with command-line arguments like this will prouce the same results:
+    % python data_gatherer.py circlejerk 500 24 20
+    *be careful that this module does not check for inpout consistency TODO
+    
 Todo:
     *Multiprossessing support at __newSubmissionWatcher__ and see if I can make that fucking spaggeti more
     readable
+    *consistency check at command-line calls
 
 """
 
 
-
+import sys
 import praw
 import json
 import time
 import threading
+import os
+import os.path
 
 r = praw.Reddit('Submission data gatherer')
     
@@ -192,10 +202,13 @@ class SubredditGather:
             try:
                 sub_list = [s for s in praw_subreddit.get_new(place_holder = place_holder)] 
                 sub_list_id = [s.id for s in sub_list]
+                
+                #TODO raise an error instead of turning list empty
                 if place_holder not in sub_list_id:
                     sub_list = []      
                 else:
                     sub_list.pop()
+                    
                 if len(sub_list) > 0:
                     printlist = [s.id for s in sub_list]
                     print printlist
@@ -208,5 +221,12 @@ class SubredditGather:
                 pass
         pass
         
-
         
+
+if __name__ == '__main__':
+    #TODO Check arguments consistency in the future
+    argv = sys.argv
+    if len(argv) != 5:
+        print 'this aplication is expected to be initialized with 4 arumgents'
+    else:
+        SubredditGather(argv[1],int(argv[2]),float(argv[3]),float(argv[4])).watch()
