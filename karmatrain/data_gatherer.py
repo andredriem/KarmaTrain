@@ -45,18 +45,24 @@ Todo:
 
 import sys
 import praw
+from praw.handlers import MultiprocessHandler
 import json
 import time
 import threading
-import os
-import os.path
+from multiprocessing import Process
 
-r = praw.Reddit('Submission data gatherer')
+
+multiprocess_handler = MultiprocessHandler()
+
     
 class SubmissionGather:
     """
     This class is used to gather karma data from a specific submission
     """
+    
+    
+    r = praw.Reddit('Submission data gatherer', handlrer=multiprocess_handler)
+    
     def __init__(self,permalink,analysis_time,analysis_delay):
         """
         Args:
@@ -68,10 +74,10 @@ class SubmissionGather:
         self.analysis_time = analysis_time 
         self.analysis_delay = analysis_delay
         
-        self.watch_thread = None
+        #self.watch_thread = None
         now = time.time()
         self.deadline = now + ( self.analysis_time * 3600.0 )
-        self.watch_thread = threading.Thread(target=self.__periodicUpdate__, args=(self.deadline,self.analysis_delay))
+        #self.watch_thread = threading.Thread(target=self.__periodicUpdate__, args=(self.deadline,self.analysis_delay))
         self.__fileInit__()
         
     
@@ -80,7 +86,7 @@ class SubmissionGather:
         """
         Forces an update in submission file
         """
-        submission = r.get_submission(self.permalink)
+        submission = self.r.get_submission(self.permalink)
         s_dic = {}
         s_dic['ups'] = submission.ups
         s_dic['ratio'] = submission.upvote_ratio
@@ -96,23 +102,26 @@ class SubmissionGather:
         Keep checking thread until analisys_time ends
         """
         
+        
         now = time.time()
         self.deadline = now + ( self.analysis_time * 3600.0 )
-        self.watch_thread = threading.Thread(target=self.__periodicUpdate__, args=(self.deadline,self.analysis_delay))
-        self.watch_thread.start()    
+        watch_process = Process(target=self.__periodicUpdate__, args=(self.deadline,self.analysis_delay))
+        watch_process.start()
+        #self.watch_thread = threading.Thread(target=self.__periodicUpdate__, args=(self.deadline,self.analysis_delay))
+        #self.watch_thread.start()    
         pass
         
-    def getThreadStatus(self):
-        """
-        Checks class threads status
-        
-        Returns:
-            True if a thread called by this class is running, False otherwise
-        """
-        if type(self.watch_thread) == type(None):
-            return False
-        else:
-            return self.watch_thread.isAlive()
+#    def getThreadStatus(self):
+#        """
+#        Checks class threads status
+#        
+#        Returns:
+#            True if a thread called by this class is running, False otherwise
+#        """
+#        if type(self.watch_thread) == type(None):
+#            return False
+#        else:
+#            return self.watch_thread.isAlive()
         
         
     def __periodicUpdate__(self,deadline,delay):
@@ -121,6 +130,10 @@ class SubmissionGather:
             Since this funcion will be executing for a long time and reddit servers can go down at any time
             this function will need a proper error handling.
         """
+        
+        #This is necessary since praw-server requests and Reddit object per prosses
+        self.r = praw.Reddit('Submission data gatherer', handlrer=multiprocess_handler)
+        
         try:
             while time.time() <= deadline:
                 self.update()
@@ -131,7 +144,7 @@ class SubmissionGather:
         pass
             
     def __fileInit__(self):
-        submission = r.get_submission(self.permalink)
+        submission = self.r.get_submission(self.permalink)
         s_dic = {}
         s_dic['title'] = submission.title
         s_dic['selftext'] = submission.selftext
@@ -153,6 +166,9 @@ class SubredditGather:
     """
     This class is used to gather karma data for an specific number of upcomming submissions in a chosen subreddit
     """
+    
+    r = praw.Reddit('Submission data gatherer', handlrer=multiprocess_handler)
+    
     def __init__(self,subreddit,max_posts,analysis_time,analysis_delay):
         """
         Args:
@@ -192,7 +208,7 @@ class SubredditGather:
     def __newSubmissionWatcher__(self):
         #TODO add multiprocessing support
         #TODO make this function less spaggeti (very hard)
-        praw_subreddit = r.get_subreddit(self.subreddit)
+        praw_subreddit = self.r.get_subreddit(self.subreddit)
         sub_list = [s for s in praw_subreddit.get_new()]
         place_holder = sub_list[0].id
         print place_holder
