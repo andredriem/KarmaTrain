@@ -48,8 +48,8 @@ import praw
 import json
 import time
 import threading
-import os
-import os.path
+
+from multiprocessing import Process
 
 r = praw.Reddit('Submission data gatherer')
     
@@ -98,8 +98,14 @@ class SubmissionGather:
         
         now = time.time()
         self.deadline = now + ( self.analysis_time * 3600.0 )
+
+        """
         self.watch_thread = threading.Thread(target=self.__periodicUpdate__, args=(self.deadline,self.analysis_delay))
-        self.watch_thread.start()    
+        self.watch_thread.start()  
+        """
+
+        p = Process(target=self.__periodicUpdate__, args=(self.deadline,self.analysis_delay))
+        p.start()  
         pass
         
     def getThreadStatus(self):
@@ -125,7 +131,8 @@ class SubmissionGather:
             while time.time() <= deadline:
                 self.update()
                 time.sleep(delay)
-        except AttributeError:
+        #AtributeError Error ConnectionError
+        except:
         #This erros is caused by multiple requests of reddit api
             pass
         pass
