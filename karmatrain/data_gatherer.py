@@ -36,8 +36,6 @@ Exemples:
     *be careful that this module does not check for inpout consistency TODO
     
 Todo:
-    *Multiprossessing support at __newSubmissionWatcher__ and see if I can make that fucking spaggeti more
-    readable
     *consistency check at command-line calls
 
 """
@@ -206,7 +204,6 @@ class SubredditGather:
             return self.watch_thread.isAlive()
         
     def __newSubmissionWatcher__(self):
-        #TODO add multiprocessing support
         #TODO make this function less spaggeti (very hard)
         praw_subreddit = self.r.get_subreddit(self.subreddit)
         sub_list = [s for s in praw_subreddit.get_new()]
