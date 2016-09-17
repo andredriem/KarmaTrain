@@ -118,7 +118,7 @@ class SubmissionGather:
             while time.time() <= deadline:
                 self.update()
                 time.sleep(delay)
-        except AttributeError:
+        except:
         #This erros is caused by multiple requests of reddit api
             pass
         pass
@@ -209,7 +209,7 @@ class SubredditGather:
                     for s in sub_list:
                         SubmissionGather(s.permalink,self.analysis_time,self.analysis_delay).watch()
                     submission_counter += len(sub_list)
-            except AttributeError:
+            except:
             #This error is caused by multiple requests of reddit api
                 pass
         pass
