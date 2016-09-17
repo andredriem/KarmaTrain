@@ -30,6 +30,7 @@ Exemples:
     *be careful that this module does not check for inpout consistency TODO
     
 Todo:
+    *Integrate with db_management
     *Multiprossessing support at __newSubmissionWatcher__ and see if I can make that fucking spaggeti more
     readable
     *consistency check at command-line calls
@@ -118,7 +119,7 @@ class SubmissionGather:
             while time.time() <= deadline:
                 self.update()
                 time.sleep(delay)
-        except:
+        except AttributeError:
         #This erros is caused by multiple requests of reddit api
             pass
         pass
@@ -209,7 +210,7 @@ class SubredditGather:
                     for s in sub_list:
                         SubmissionGather(s.permalink,self.analysis_time,self.analysis_delay).watch()
                     submission_counter += len(sub_list)
-            except:
+            except AttributeError:
             #This error is caused by multiple requests of reddit api
                 pass
         pass
@@ -223,3 +224,4 @@ if __name__ == '__main__':
         print 'this aplication is expected to be initialized with 4 arumgents'
     else:
         SubredditGather(argv[1],int(argv[2]),float(argv[3]),float(argv[4])).watch()
+
