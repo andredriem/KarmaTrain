@@ -2,89 +2,114 @@
 This module is used to administrate mysql requests to a database.
 """
 
-
-import mysql_config
-import MySQLdb
+import pymysql
+import karmatrain.mysql_config as mysql_config
 
 
 class MySQLConnection:
-
     def __init__(self):
         self.host = mysql_config.host
         self.user = mysql_config.user
         self.password = mysql_config.password
         self.db = mysql_config.db
-        self.connection = self.__connect__()
-                             
-    def __connect__(self): 
-        self.connection = MySQLdb.connect(self.host,
-                                          self.user,       
-                                          self.password, 
-                                          self.db)       
-        return self.connection       
+        self.connection = self._connect()
+
+    def _connect(self):
+        self.connection = pymysql.connect(self.host,
+                                          self.user,
+                                          self.password,
+                                          self.db)
+        return self.connection
         pass
 
     def close(self):
         self.connection.close()
         pass
-        
-    #TODO    
-    def insertNewSubmission(self,table_name):
+
+    # TODO
+    def insert_new_submission(self, table_name):
         cur = self.connection.cursor()
         try:
             i = cur.execute("""SHOW TABLES LIKE 'submissions';
                             """)
             if i == 0:
-                self._createSubmissionsTable(cur)
-            
-            self._createThisSubmissionTable(cur,table_name)
-            #TODO: updateSubmissionsTable with the new submission info
+                self._create_submissions_main_table(cur)
+
+            # TODO add a row with submission data in submissions table
+            self._create_submission_table(cur, table_name)
             cur.close()
         except:
-            #TODO: exception treatment ("already exists" and others)
+            # TODO: exception treatment ("already exists" and others)
             cur.close()
             raise
         pass
-        
-    def updateSubmission(self,table_name,dic):
+
+    def delete_submission(self, table_name):
+        cur = self.connection.cursor()
+        try:
+            cur.execute("DROP TABLE %s ;" % table_name)
+            cur.execute("DELETE FROM submissions WHERE submissions.submission_id = %s" % table_name)
+        except:
+            raise
+        pass
+
+    def update_submission(self, table_name, dic):
         try:
             cur = self.connection.cursor()
-            cur.execute("""INSERT INTO %s(computer_time, ratio, upvotes, comments) 
-                        VALUES (%f, %f, %d, %d)"""%(table_name,dic['computer_time'],dic['ratio'],dic['ups'],dic['num_comments'])
+            cur.execute("""INSERT INTO {0:s}(computer_time, ratio, upvotes, comments)
+                        VALUES ({1:f}, {2:f}, {3:d}, {4:d})""".format(table_name, dic['computer_time'], dic['ratio'],
+                                                                      dic['ups'], dic['num_comments'])
                         )
-            cur.execute("""SELECT * FROM %s"""%(table_name)
-                       )   
-            print cur.fetchall()
+            cur.execute("SELECT * FROM {0:s}".format(table_name)
+                        )
+#            print(cur.fetchall())
             cur.close()
         except:
-            cur.close()
             raise
         pass
-    def getSubmission(self,arguments):
+
+    def get_submission(self, sub_id):
+        try:
+            cur = self.connection.cursor()
+            cur.execute(u'SELECT * FROM {0:s} ;'.format(sub_id))
+            sub_data = cur.fetchall()
+            cur.close()
+            return sub_data
+        except:
+            raise
         pass
-    def getListOfSubmissionsBySubreddit(self,arguments):
+
+    def get_list_of_submissions(self):
+        try:
+            cur = self.connection.cursor()
+            cur.execute("SELECT submission_id FROM submissions;")
+            sub_list = cur.fetchall()
+            cur.close()
+            return sub_list
+        except:
+            raise
         pass
-    def getListOfSubmissions(self,arguments):
-        pass 
-        
-    def _createSubmissionsTable(self,cur):
+
+    @staticmethod
+    def _create_submissions_main_table(cur):
         try:
             cur.execute("""CREATE TABLE submissions (
                             permalink VARCHAR(1000) UNIQUE, 
                             title VARCHAR(1000), 
-                            selftext text,
-                            time double, 
-                            subreddit VARCHAR(3000),
+                            selftext TEXT,
+                            time DOUBLE,
+                            subreddit VARCHAR(300),
                             submission_id VARCHAR(50), 
-                            id int NOT NULL auto_increment, 
+                            id INT NOT NULL AUTO_INCREMENT,
                             PRIMARY KEY (id),
                             UNIQUE KEY submission (submission_id, subreddit) );
                     """)
         except:
             raise
         pass
-        
-    def _createThisSubmissionTable(self,cur,table_name):
+
+    @staticmethod
+    def _create_submission_table(cur, table_name):
         try:
             cur.execute("""CREATE TABLE %s (
                             computer_time double, 
@@ -93,21 +118,23 @@ class MySQLConnection:
                             comments int, 
                             id int NOT NULL auto_increment, 
                             PRIMARY KEY (id) );
-                    """%(table_name))
+                    """ % table_name)
         except:
-            raise 
+            raise
         pass
 
 
-
-
-
 if __name__ == '__main__':
-    MySQLConnection().insertNewSubmission('test1')
-    s_dic = {}
-    s_dic['ups'] = 1
-    s_dic['ratio'] = 0.99
-    s_dic['computer_time'] = 0.1
-    s_dic['num_comments'] = 9001
-    MySQLConnection().updateSubmission('test1',s_dic)
-      
+    conn = MySQLConnection()
+    try:
+        conn.insert_new_submission('test1')
+        conn.insert_new_submission('test2')
+        conn.insert_new_submission('test3')
+        print(conn.get_list_of_submissions())
+        conn.delete_submission('test1')
+        conn.delete_submission('test2')
+        conn.delete_submission('test3')
+        conn.close()
+    except:
+        raise
+    pass
