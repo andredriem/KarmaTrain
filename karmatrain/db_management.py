@@ -49,14 +49,13 @@ class MySQLConnection:
                                           self.password,
                                           self.db)
         return self.connection
-        pass
 
     def close(self):
         self.connection.close()
-        pass
+        return True
 
     # TODO
-    def insert_new_submission(self, title, thread_id,subreddit, selftext, time):
+    def insert_new_submission(self, title, thread_id, subreddit, selftext, time):
         cur = self.connection.cursor()
         try:
             i = cur.execute("""SHOW TABLES LIKE 'submissions';
@@ -65,7 +64,7 @@ class MySQLConnection:
                 self._create_submissions_main_table(cur)
 
             cur.execute(u"""
-                        INSERT INTO submissions VALUES (\"{0:s}\",\"{1:s}\",{2:s},\"{3:s}\",\"{4:s}\",NULL);
+                        INSERT INTO submissions VALUES (\"{0:s}\",\"{1:s}\",{2:f},\"{3:s}\",\"{4:s}\",NULL);
                         """.format(title, selftext, time, subreddit, thread_id))
 
             self._create_submission_table(cur, thread_id)
@@ -74,36 +73,36 @@ class MySQLConnection:
             # TODO: exception treatment ("already exists" and others)
             cur.close()
             raise
-        pass
+        return True
 
     def delete_submission(self, thread_id):
         cur = self.connection.cursor()
         try:
             cur.execute("DROP TABLE %s ;" % thread_id)
-            cur.execute("DELETE FROM submissions WHERE submissions.submission_id = %s" % thread_id)
+            cur.execute("DELETE FROM submissions WHERE submissions.thread_id = \"%s\" ;" % thread_id)
         except:
             raise
-        pass
+        return True
 
-    def update_submission(self, table_name, computer_time, ratio, ups, num_comments):
+    def update_submission(self, thread_id, computer_time, ratio, ups, num_comments):
         try:
             cur = self.connection.cursor()
             cur.execute("""INSERT INTO {0:s}(computer_time, ratio, upvotes, comments)
-                        VALUES ({1:f}, {2:f}, {3:d}, {4:d})""".format(table_name, computer_time, ratio,
+                        VALUES ({1:f}, {2:f}, {3:f}, {4:d})""".format(thread_id, computer_time, ratio,
                                                                       ups, num_comments)
                         )
-            cur.execute("SELECT * FROM {0:s}".format(table_name)
-                        )
+#            cur.execute("SELECT * FROM {0:s}".format(table_name)
+#                        )
 #            print(cur.fetchall())
             cur.close()
         except:
             raise
-        pass
+        return True
 
-    def get_submission(self, sub_id):
+    def get_submission(self, thread_id):
         try:
             cur = self.connection.cursor()
-            cur.execute(u'SELECT * FROM {0:s} ;'.format(sub_id))
+            cur.execute(u'SELECT * FROM {0:s} ;'.format(thread_id))
             sub_data = cur.fetchall()
             cur.close()
             return sub_data
@@ -114,10 +113,10 @@ class MySQLConnection:
     def get_list_of_submissions(self):
         try:
             cur = self.connection.cursor()
-            cur.execute("SELECT submission_id FROM submissions;")
+            cur.execute("SELECT thread_id FROM submissions;")
             sub_list = cur.fetchall()
             cur.close()
-            return sub_list
+            return [t[0] for t in sub_list]
         except:
             raise
         pass
