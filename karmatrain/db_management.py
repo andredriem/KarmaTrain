@@ -56,7 +56,7 @@ class MySQLConnection:
         pass
 
     # TODO
-    def insert_new_submission(self, title, thread_id, selftext, time, subreddit):
+    def insert_new_submission(self, title, thread_id,subreddit, selftext, time):
         cur = self.connection.cursor()
         try:
             i = cur.execute("""SHOW TABLES LIKE 'submissions';
@@ -65,7 +65,7 @@ class MySQLConnection:
                 self._create_submissions_main_table(cur)
 
             cur.execute(u"""
-                        INSERT INTO submissions ({0:s},{1:s},{2:s},{3:s});
+                        INSERT INTO submissions VALUES (\"{0:s}\",\"{1:s}\",{2:s},\"{3:s}\",\"{4:s}\",NULL);
                         """.format(title, selftext, time, subreddit, thread_id))
 
             self._create_submission_table(cur, thread_id)
@@ -85,11 +85,11 @@ class MySQLConnection:
             raise
         pass
 
-    def update_submission(self, table_name, computer_time,ratio,ups,num_comments):
+    def update_submission(self, table_name, computer_time, ratio, ups, num_comments):
         try:
             cur = self.connection.cursor()
             cur.execute("""INSERT INTO {0:s}(computer_time, ratio, upvotes, comments)
-                        VALUES ({1:f}, {2:f}, {3:d}, {4:d})""".format(table_name,computer_time,ratio,
+                        VALUES ({1:f}, {2:f}, {3:d}, {4:d})""".format(table_name, computer_time, ratio,
                                                                       ups, num_comments)
                         )
             cur.execute("SELECT * FROM {0:s}".format(table_name)
