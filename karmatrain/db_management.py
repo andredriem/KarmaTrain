@@ -1,5 +1,34 @@
 """
-This module is used to administrate mysql requests to a database.
+This module is used to administrate mysql requests to a database. In this early phase os development the DB project is
+very immature.
+
+
+The submissions table holds the unique thread id provided by reddit. the thread_id is associated to a table with the sa-
+me name described next.
+submissions(title VARCHAR(1000),
+            selftext TEXT,
+            time DOUBLE,
+            subreddit VARCHAR(300),
+            thread_id VARCHAR(50),
+            id INT NOT NULL AUTO_INCREMENT,
+            PRIMARY KEY (id),
+            UNIQUE KEY submission (thread_id, subreddit) );
+
+
+Every row of a thread_id table contains a snapshot of a thread at a given time (computer_time).
+
+thread_id(computer_time double,
+          ratio double,
+          upvotes int,
+          comments int,
+          id int NOT NULL auto_increment,
+          PRIMARY KEY (id) )
+
+TODO:
+    *Create documentation for methods
+    *JUnit testing
+    *Create extract "XML method"
+    *Remove if '__name__' == '__main__' function
 """
 
 import pymysql
@@ -27,7 +56,7 @@ class MySQLConnection:
         pass
 
     # TODO
-    def insert_new_submission(self, table_name):
+    def insert_new_submission(self, title, thread_id, selftext, time, subreddit):
         cur = self.connection.cursor()
         try:
             i = cur.execute("""SHOW TABLES LIKE 'submissions';
@@ -35,8 +64,11 @@ class MySQLConnection:
             if i == 0:
                 self._create_submissions_main_table(cur)
 
-            # TODO add a row with submission data in submissions table
-            self._create_submission_table(cur, table_name)
+            cur.execute(u"""
+                        INSERT INTO submissions ({0:s},{1:s},{2:s},{3:s});
+                        """.format(title, selftext, time, subreddit, thread_id))
+
+            self._create_submission_table(cur, thread_id)
             cur.close()
         except:
             # TODO: exception treatment ("already exists" and others)
@@ -44,21 +76,21 @@ class MySQLConnection:
             raise
         pass
 
-    def delete_submission(self, table_name):
+    def delete_submission(self, thread_id):
         cur = self.connection.cursor()
         try:
-            cur.execute("DROP TABLE %s ;" % table_name)
-            cur.execute("DELETE FROM submissions WHERE submissions.submission_id = %s" % table_name)
+            cur.execute("DROP TABLE %s ;" % thread_id)
+            cur.execute("DELETE FROM submissions WHERE submissions.submission_id = %s" % thread_id)
         except:
             raise
         pass
 
-    def update_submission(self, table_name, dic):
+    def update_submission(self, table_name, computer_time,ratio,ups,num_comments):
         try:
             cur = self.connection.cursor()
             cur.execute("""INSERT INTO {0:s}(computer_time, ratio, upvotes, comments)
-                        VALUES ({1:f}, {2:f}, {3:d}, {4:d})""".format(table_name, dic['computer_time'], dic['ratio'],
-                                                                      dic['ups'], dic['num_comments'])
+                        VALUES ({1:f}, {2:f}, {3:d}, {4:d})""".format(table_name,computer_time,ratio,
+                                                                      ups, num_comments)
                         )
             cur.execute("SELECT * FROM {0:s}".format(table_name)
                         )
@@ -94,15 +126,14 @@ class MySQLConnection:
     def _create_submissions_main_table(cur):
         try:
             cur.execute("""CREATE TABLE submissions (
-                            permalink VARCHAR(1000) UNIQUE, 
                             title VARCHAR(1000), 
                             selftext TEXT,
                             time DOUBLE,
                             subreddit VARCHAR(300),
-                            submission_id VARCHAR(50), 
+                            thread_id VARCHAR(50),
                             id INT NOT NULL AUTO_INCREMENT,
                             PRIMARY KEY (id),
-                            UNIQUE KEY submission (submission_id, subreddit) );
+                            UNIQUE KEY submission (thread_id, subreddit) );
                     """)
         except:
             raise
