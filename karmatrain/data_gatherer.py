@@ -30,7 +30,9 @@ Examples:
     *be careful that this module does not check for input consistency TODO
     
 Todo:
-    *Integrate with db_management
+    *remove unnecessary print functions
+    *remove obsolete file methods (with care)
+    *proper testing.
     *Multiprocessing support at __newSubmissionWatcher__ and see if I can make that fucking spaghetti more
     readable
     *consistency check at command-line calls
@@ -41,6 +43,7 @@ import praw
 import json
 import time
 import threading
+import karmatrain.db_management
 
 r = praw.Reddit('Submission data gatherer')
 
@@ -60,22 +63,26 @@ class SubmissionGather:
         self.permalink = permalink
         self.analysis_time = analysis_time
         self.analysis_delay = analysis_delay
+        self.mysqlconn = karmatrain.db_management.MySQLConnection()
 
         self.watch_thread = None
         now = time.time()
         self.deadline = now + (self.analysis_time * 3600.0)
         self.watch_thread = threading.Thread(target=self._periodic_update, args=(self.deadline, self.analysis_delay))
-        self._file_init()
+
+        self._thread_init()
 
     def update(self):
         """
         Forces an update in submission file
         """
         submission = r.get_submission(self.permalink)
-        s_dic = {'ups': submission.ups, 'ratio': submission.upvote_ratio, 'computer_time': time.time(),
-                 'num_comments': submission.num_comments}
+#        s_dic = {'ups': submission.ups, 'ratio': submission.upvote_ratio, 'computer_time': time.time(),
+#                 'num_comments': submission.num_comments}
 
-        self._save(submission.id, s_dic, 'a')
+        self.mysqlconn.update_submission(submission.id, time.time(), submission.upvote_ratio, submission.ups,
+                                         submission.num_comments)
+#        self._save(submission.id, s_dic, 'a')
         pass
 
     def watch(self):
@@ -116,12 +123,14 @@ class SubmissionGather:
             pass
         pass
 
-    def _file_init(self):
+    def _thread_init(self):
         submission = r.get_submission(self.permalink)
-        s_dic = {'title': submission.title, 'selftext': submission.selftext, 'id': submission.id,
-                 'permalink': self.permalink, 'deadline': self.deadline, 'time': submission.created_utc}
+#        s_dic = {'title': submission.title, 'selftext': submission.selftext, 'id': submission.id,
+#                 'permalink': self.permalink, 'deadline': self.deadline, 'time': submission.created_utc}
 
-        self._save(submission.id, s_dic, 'w')
+        self.mysqlconn.insert_new_submission(submission.title, submission.id, submission.subreddit, submission.selftext,
+                                             submission.created_utc)
+#        self._save(submission.id, s_dic, 'w')
         pass
 
     @staticmethod
@@ -197,7 +206,10 @@ class SubredditGather:
                     print(print_list)
                     place_holder = sub_list[0].id
                     for s in sub_list:
-                        SubmissionGather(s.permalink, self.analysis_time, self.analysis_delay).watch()
+                        try:
+                            SubmissionGather(s.permalink, self.analysis_time, self.analysis_delay).watch()
+                        except:
+                            pass
                     submission_counter += len(sub_list)
             except AttributeError:
                 # This error is caused by multiple requests of reddit api

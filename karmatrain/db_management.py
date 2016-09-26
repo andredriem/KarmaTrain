@@ -25,10 +25,9 @@ thread_id(computer_time double,
           PRIMARY KEY (id) )
 
 TODO:
+    *Remove print functions (soon)
     *Create documentation for methods
-    *JUnit testing
     *Create extract "XML method"
-    *Remove if '__name__' == '__main__' function
 """
 
 import pymysql
@@ -36,6 +35,9 @@ import karmatrain.mysql_config as mysql_config
 
 
 class MySQLConnection:
+    """
+    This class is used to manage DB interactions with other classes from the project.
+    """
     def __init__(self):
         self.host = mysql_config.host
         self.user = mysql_config.user
@@ -47,7 +49,8 @@ class MySQLConnection:
         self.connection = pymysql.connect(self.host,
                                           self.user,
                                           self.password,
-                                          self.db)
+                                          self.db,
+                                          autocommit=True)
         return self.connection
 
     def close(self):
@@ -57,15 +60,17 @@ class MySQLConnection:
     # TODO
     def insert_new_submission(self, title, thread_id, subreddit, selftext, time):
         cur = self.connection.cursor()
+        selftext += ' '
         try:
             i = cur.execute("""SHOW TABLES LIKE 'submissions';
                             """)
             if i == 0:
                 self._create_submissions_main_table(cur)
 
+#            print(title,'\n', thread_id,'\n', subreddit,'\n',selftext,'\n', time)
             cur.execute(u"""
-                        INSERT INTO submissions VALUES (\"{0:s}\",\"{1:s}\",{2:f},\"{3:s}\",\"{4:s}\",NULL);
-                        """.format(title, selftext, time, subreddit, thread_id))
+                        INSERT INTO submissions VALUES (\"%s\",\"%s\",\"%f\",\"%s\",\"%s\",NULL);
+                        """ % (title, str(selftext), time, subreddit, thread_id))
 
             self._create_submission_table(cur, thread_id)
             cur.close()
@@ -85,16 +90,21 @@ class MySQLConnection:
         return True
 
     def update_submission(self, thread_id, computer_time, ratio, ups, num_comments):
+        print("updated")
         try:
             cur = self.connection.cursor()
             cur.execute("""INSERT INTO {0:s}(computer_time, ratio, upvotes, comments)
-                        VALUES ({1:f}, {2:f}, {3:f}, {4:d})""".format(thread_id, computer_time, ratio,
+                        VALUES ({1:f}, {2:f}, {3:f}, {4:d});""".format(thread_id, computer_time, ratio,
                                                                       ups, num_comments)
                         )
-#            cur.execute("SELECT * FROM {0:s}".format(table_name)
-#                        )
-#            print(cur.fetchall())
+            print("updated2")
+            cur.execute("SELECT * FROM {0:s};".format(thread_id)
+                        )
+            print(cur.fetchall())
+            print("SELECT * FROM {0:s};".format(thread_id))
+
             cur.close()
+
         except:
             raise
         return True
@@ -154,17 +164,4 @@ class MySQLConnection:
         pass
 
 
-if __name__ == '__main__':
-    conn = MySQLConnection()
-    try:
-        conn.insert_new_submission('test1')
-        conn.insert_new_submission('test2')
-        conn.insert_new_submission('test3')
-        print(conn.get_list_of_submissions())
-        conn.delete_submission('test1')
-        conn.delete_submission('test2')
-        conn.delete_submission('test3')
-        conn.close()
-    except:
-        raise
-    pass
+
